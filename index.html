@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+
+<head>
+	<meta charset="utf-8">
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js"
+		integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+	<link href="https://fonts.googleapis.com/css?family=Quicksand:300,700" rel="stylesheet">
+	<link rel="stylesheet" href="style.css">
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-118400872-1"></script>
+	<meta name="description"
+		content="Mugwump gives new life to a classic early 80's text-based hunting game. Set a high score; feel good about yourself for once in your life.">
+	<meta name="keywords" content="javascript game, game, classic game, mugwump">
+	<meta name="author" content="Mark Arenz">
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag() { dataLayer.push(arguments); }
+		gtag('js', new Date());
+
+		gtag('config', 'UA-118400872-1');
+	</script>
+
+	<script>
+		var game = {};
+		game.highScore = 0;
+		game.powerup = {};
+		game.player = {};
+		game.monster = {};
+		game.cells = [];
+		function init_grid() {
+			var str = '';
+			str += " 1 1 1 1 1 1 1 1 1 1 \n";
+			str += "1.1.0.0.0.0.0.0.0.0.1\n";
+			str += " 0 0 0 0 0 0 0 1 1 1 \n";
+			str += "1.0.0.0.0.0.0.0.0.0.1\n";
+			str += " 1 1 0 0 1 1 1 0 0 0 \n";
+			str += "1.0.0.0.1.0.0.0.0.0.1\n";
+			str += " 0 0 0 0 0 0 0 0 0 0 \n";
+			str += "1.0.0.0.1.0.0.0.0.0.1\n";
+			str += " 0 0 0 0 0 0 0 0 0 0 \n";
+			str += "1.0.1.0.1.0.0.0.0.0.1\n";
+			str += " 0 0 0 0 1 1 0 0 0 0 \n";
+			str += "1.0.1.0.0.0.0.0.0.0.1\n";
+			str += " 0 0 0 0 0 0 0 1 1 1 \n";
+			str += "1.0.1.0.0.0.0.0.0.0.1\n";
+			str += " 0 0 1 1 0 0 0 0 0 0 \n";
+			str += "1.0.0.0.0.0.0.0.0.0.1\n";
+			str += " 1 1 1 0 0 0 0 0 0 0 \n";
+			str += "1.0.0.0.0.1.0.1.0.0.1\n";
+			str += " 0 0 0 0 0 0 0 0 0 0 \n";
+			str += "1.0.0.0.0.1.0.1.0.0.1\n";
+			str += " 1 1 1 1 1 1 1 1 1 1 \n";
+			game.walls = str.split("\n");
+			for (var i = 0; i < game.walls.length; i++) {
+				game.walls[0].split('');
+			}
+			for (var y = 0; y < game.grid_size.y; y++) {
+				game.cells[y] = [];
+				for (var x = 0; x < game.grid_size.x; x++) {
+					game.cells[y][x] = {};
+					var t = '';
+					var walls = [];
+					if (game.walls[(y * 2 + 1 - 1)][(x * 2 + 1)] == '1') {
+						t += 'u';
+						walls['u'] = true;
+						game.cells[y][x].u = true;
+					}
+					if (game.walls[(y * 2 + 1 + 1)][(x * 2 + 1)] == '1') {
+						t += 'd';
+						walls['d'] = true;
+						game.cells[y][x].d = true;
+					}
+					if (game.walls[(y * 2 + 1)][(x * 2 + 1 - 1)] == '1') {
+						t += 'l';
+						walls['l'] = true;
+						game.cells[y][x].l = true;
+					}
+					if (game.walls[(y * 2 + 1)][(x * 2 + 1 + 1)] == '1') {
+						t += 'r';
+						walls['r'] = true;
+						game.cells[y][x].r = true;
+					}
+
+					var t = x * 5 + y * 5;
+					var l = 45 + x * 5 - y * 5;
+					var h = '<div class="cell cell_' + t + ' x' + x + ' y' + y + '" style="top:' + t + '%;left:' + l + '%;z-index:' + t + ';">';
+					h += '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">';
+					h += '	<polygon class="base-tile" points="0,50 50,0 100,50 50,100" stroke="#ccc" stroke-width="4" fill="transparent" />';
+					h += '</svg>';
+
+					if (walls['l']) {
+						h += '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="position:absolute;left:-50%;top:-50%;z-index:10;">';
+						h += '	<polygon points="50,100 50,60 100,10, 100,50" fill="#999" />';
+						h += '	<polygon points="50,60 46,57 96,7 100,10" fill="#bbb" />';
+						h += '	<polygon points="50,100 47,97 47,57 50,60" fill="#888" />';
+						h += '</svg>';
+					}
+					if (walls['u']) {
+						h += '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="position:absolute;left:50%;top:-50%;">';
+						h += '	<polygon points="0,50 0,10 50,60 50,100" fill="#999" />';
+						h += '	<polygon points="0,10 6,7 56,57 50,60" fill="#bbb" />';
+						h += '	<polygon points="50,100 50,60 56,57 56,97" fill="#888" />';
+						h += '</svg>';
+					}
+					if (walls['r']) {
+						h += '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" >';
+						h += '	<polygon points="50,100 50,60 100,10, 100,50" fill="#999" />';
+						h += '	<polygon points="50,60 46,57 96,7 100,10" fill="#bbb" />';
+						h += '	<polygon points="50,100 47,97 47,57 50,60" fill="#888" />';
+						h += '</svg>';
+					}
+					if (walls['d']) {
+						h += '<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+						h += '	<polygon points="0,50 0,10 50,60 50,100" fill="#999" />';
+						h += '	<polygon points="0,10 6,7 56,57 50,60" fill="#bbb" />';
+						h += '	<polygon points="50,100 50,60 56,57 56,97" fill="#888" />';
+						h += '</svg>';
+					}
+					//h+= '<div style="text-align:center;width:100%;margin-top:5%;position:relative;">' + x + ',' + y + '</div>';
+					h += '<div onClick="playerMoveDirect(event, ' + x + ',' + y + ')" class="cell-click"></div>';
+					h += '</div>';
+					$('#board').append(h);
+					$('.cell-click').hover(
+						function () {
+							if (game.state == 'waiting') {
+								$(this).parent().find('.base-tile').css({ fill: "yellow", transition: "0.1s" });
+								//$(this).parent().find('.base-tile').attr('fill','yellow');
+							}
+						}, function () {
+							if (game.state == 'waiting') {
+								$(this).parent().find('.base-tile').css({ fill: "transparent", transition: "0.5s" });
+								//$(this).parent().find('.base-tile').attr('fill','transparent');
+							}
+						}
+					);
+				}
+			}
+			h = '';
+			h += '<div id="board-edge">';
+			h += '	<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+			h += '		<polygon points="50,100 50,96 0,46 0,50" fill="#bbb" />';
+			h += '		<polygon points="50,96 50,95 0.25,45.5 0,46" fill="#ddd" />';
+			h += '		<polygon points="50,100 50,96 100,46 100,50" fill="#bbb" />';
+			h += '		<polygon points="50,96 50,95 99.75,45.5 100,46" fill="#ddd" />';
+			h += '	</svg>';
+			h += '</div>';
+			$('#board').append(h);
+
+			h = '';
+			h += '<div id="player" class="no-click">';
+			h += '	<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" >';
+			h += '		<path id="arm-r" d="M 70 30 q 30 40 10 50" stroke="#333" stroke-width="3" fill="none" />';
+			h += '		<path id="arm-l" d="M 30 30 q -30 40 -15 50" stroke="#333" stroke-width="3" fill="none" />';
+			h += '		<circle id="hand-l" cx="15" cy="80" r="4" />';
+			h += '		<circle id="hand-r" cx="82" cy="80" r="4" />';
+			h += '		<circle id="foot-l" cx="26" cy="95" r="5" />';
+			h += '		<circle id="foot-r" cx="73" cy="95" r="5" />';
+			h += '		<line ld="leg-r" class="leg_r" x1="65" y1="75" x2="75" y2="100" stroke="#333" stroke-width="3" fill="none" />';
+			h += '		<line id="leg-l" x1="35" y1="75" x2="25" y2="100" stroke="#333" stroke-width="3" fill="none" />';
+			h += '			<defs>';
+			h += '				<linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">';
+			h += '					<stop offset="0%" style="stop-color:rgb(150,150,220);stop-opacity:1" />';
+			h += '					<stop offset="100%" style="stop-color:rgb(50,50,150);stop-opacity:1" />';
+			h += '				</linearGradient>';
+			h += '				<linearGradient id="horngrad" x1="0%" y1="0%" x2="0%" y2="100%">';
+			h += '					<stop offset="20%" style="stop-color:#ff3333;stop-opacity:1" />';
+			h += '					<stop offset="60%" style="stop-color:#ceb07c;stop-opacity:1" />';
+			h += '				</linearGradient>';
+			h += '			</defs>';
+			h += '		<path id="horn-l" d="M 25 35 Q 0 15 5 0 Q 15 25 30 10 Z" stroke="none" fill="url(#horngrad)"/>';
+			h += '		<path id="horn-r" d="M 75 35 Q 100 15 95 0 Q 85 25 70 10 Z" stroke="none" fill="url(#horngrad)"/>';
+			h += '		<rect x="25" y="5" rx="20" ry="20" width="50" height="85" fill="url(#grad1)" />';
+			h += '		<line x1="27" y1="25" x2="20" y2="20" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="73" y1="25" x2="80" y2="20" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="70" y1="15" x2="75" y2="10" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="30" y1="15" x2="25" y2="10" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="60" y1="8" x2="65" y2="3" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="40" y1="8" x2="35" y2="3" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			h += '		<line x1="50" y1="8" x2="50" y2="0" stroke="#4a4aa6" stroke-width="2" fill="none" />';
+			//				h+='		<polygon points="25,50 75,50 75,70 25,70" fill="#000" />';
+			//				h+='		<polygon points="25,50 33,55 41,50 50,55 59,50 67,55 75,50" fill="#fff" />';
+			//				h+='		<polygon points="25,70 33,65 41,70 50,65 59,70 67,65 75,70" fill="#fff" />';
+			h += '		<polygon points="25,45 75,45 75,60 25,60" fill="#000" />';
+			h += '		<polygon points="25,45 33,50 41,45 50,50 59,45 67,50 75,45" fill="#fff" />';
+			h += '		<polygon points="25,60 33,55 41,60 50,55 59,60 67,55 75,60" fill="#fff" />';
+			h += '		<circle id="eye-l" cx="35" cy="30" r="3" />';
+			h += '		<circle id="eye-r" cx="65" cy="30" r="3" />';
+			h += '	</svg>';
+			h += '</div>';
+			h += '<div id="hintMeasure" class="no-click">';
+			h += '</div>';
+			h += '<div id="hintArrow" class="no-click">';
+			h += '</div>';
+
+			h += '<div id="powerup" class="no-click">';
+			h += '</div>';
+
+			$('#board').append(h);
+		}
+		function playerMoveDirect(e, new_x, new_y) {
+			e.stopPropagation();
+			e.preventDefault();
+			if (game.state == 'waiting') {
+				game.player.x = new_x;
+				game.player.y = new_y;
+				game.moves++;
+				displayMoves();
+				game.movesLeft--;
+				displayMovesLeft();
+				position_obj('player', game.player.x, game.player.y, 25, 'move');
+				if ($('#powerup').css('display') != 'block') {
+					var tmp = Math.random();
+					//tmp=Math.random();
+					if (tmp < .95) {
+						var coords = randomEmptyCoords();
+						game.powerup.x = coords.x;
+						game.powerup.y = coords.y;
+						tmp = Math.random();
+						tmp = .8;
+						if (tmp < .25) {
+							game.powerup.type = 'extra-moves';
+							//$('#powerup-moves').show();
+							//$('#powerup-hints').hide();
+							var h = '';
+							h += '		<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+							h += '			<ellipse cx="50" cy="50" rx="28" ry="32" fill="#dd4444" stroke-width="2" stroke="#444" />';
+							h += '			<polygon points="45,35 45,65 55,65 55,35" fill="#fff" />';
+							h += '			<polygon points="35,45 65,45 65,55 35,55" fill="#fff" />';
+							h += '		</svg>';
+							$('#powerup').html(h);
+						} else if (tmp < .5) {
+							game.powerup.type = 'extra-hints';
+							var h = '';
+							h += '		<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+							h += '			<circle cx="50" cy="57" r="25" fill="#777"/>';
+							h += '			<circle cx="50" cy="48" r="24" fill="#bbbbdd" stroke-width="3" stroke="#4444bb"/>';
+							h += '			<polygon points="45,43 55,53 65,35" fill="#ff4444" />';
+							h += '			<polygon points="45,43 55,53 35,65" fill="#fff" />';
+							h += '			<circle cx="50" cy="48" r="3" fill="#666"/>';
+							h += '		</svg>';
+							$('#powerup').html(h);
+						} else if (tmp < .75) {
+							game.powerup.type = 'extra-points';
+							var h = '';
+							h += '		<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+							h += '			<defs>';
+							h += '				<linearGradient id="coingrad" x1="0%" y1="0%" x2="0%" y2="100%">';
+							h += '					<stop offset="15%" style="stop-color:#FFDB43;stop-opacity:1" />';
+							h += '					<stop offset="70%" style="stop-color:#ffa734;stop-opacity:1" />';
+							h += '				</linearGradient>';
+							h += '				<linearGradient id="coingrad2" x1="0%" y1="0%" x2="0%" y2="100%">';
+							h += '					<stop offset="10%" style="stop-color:#ffffff;stop-opacity:1" />';
+							h += '					<stop offset="70%" style="stop-color:#deb00a;stop-opacity:1" />';
+							h += '				</linearGradient>';
+							h += '			</defs>';
+							h += '			<ellipse cx="53" cy="40" rx="16" ry="34" fill="url(#coingrad)" stroke-width="2" stroke="rgba(0,0,0,.4)"/>';
+							h += '			<ellipse cx="50" cy="40" rx="14" ry="34" fill="url(#coingrad)" stroke-width="2" stroke="rgba(0,0,0,.4)"/>';
+							h += '			<ellipse cx="50" cy="40" rx="8" ry="24" fill="url(#coingrad)" stroke-width="2" stroke="rgba(0,0,0,.4)"/>';
+							h += '			<rect x="48" y="26" width="4" height="30" stroke-width="2" stroke="rgba(0,0,0,.3)" fill="transparent" />';
+							h += '		</svg>';
+							$('#powerup').html(h);
+						} else {
+							game.powerup.type = 'extra-measures';
+							var h = '';
+							h += '		<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" style="z-index:10;">';
+							h += '				<polygon points="10,70 30,90 90,35 70,15" fill="#888" />';
+							h += '				<polygon points="10,65 30,85 90,30 70,10" fill="#d8b71a" stroke="#222" stroke-width="2"/>';
+							h += '				<line x1="45" y1="75" x2="35" y2="65" stroke="#222" stroke-width="2" fill="none" />';
+							h += '				<line x1="60" y1="60" x2="50" y2="50" stroke="#222" stroke-width="2" fill="none" />';
+							h += '				<line x1="75" y1="45" x2="65" y2="35" stroke="#222" stroke-width="2" fill="none" />';
+							h += '		</svg>';
+							$('#powerup').html(h);
+						}
+						var t = game.powerup.x * 5 + game.powerup.y * 5;
+						var l = 45 + game.powerup.x * 5 - game.powerup.y * 5;
+						$('#powerup').css('z-index', t);
+						$('#powerup').css('left', l + '%');
+						$('#powerup').css('top', t + '%');
+						game.powerup.t = t;
+						$('#powerup').show();
+						pulsePowerup();
+					}
+				}
+			}
+		}
+		function pulsePowerupStop() {
+
+		}
+		function pulsePowerup() {
+			$('#powerup').animate({
+				'top': game.powerup.t - 3 + '%'
+			}, 350, function () {
+				$(this).animate({
+					'top': game.powerup.t + '%'
+				}, 350, function () {
+					if ($('#powerup').css('display') == 'block') {
+						pulsePowerup();
+					}
+				});
+			});
+		}
+		function randomEmptyCoords() {
+			var coords = {};
+			coords.x = Math.floor((Math.random() * 9) + 1);
+			coords.y = Math.floor((Math.random() * 9) + 1);
+			var ok = true;
+			if ((coords.x == game.player.x) && (coords.y == game.player.y)) {
+				ok = false;
+			}
+			if ((coords.x == game.monster.x) && (coords.y == game.monster.y)) {
+				ok = false;
+			}
+
+			if (ok) {
+				return coords;
+			} else {
+				return randomEmptyCoords();
+			}
+		}
+		function playerMove(e, dx, dy) {
+			if (game.state == 'waiting') {
+				e.preventDefault();
+				var x = game.player.x;
+				var y = game.player.y;
+
+				var move_ok = true;
+
+				if ((dx < 0) && (game.cells[y][x].l)) {
+					move_ok = false;
+				}
+				if ((dx > 0) && (game.cells[y][x].r)) {
+					move_ok = false;
+				}
+				if ((dy < 0) && (game.cells[y][x].u)) {
+					move_ok = false;
+				}
+				if ((dy > 0) && (game.cells[y][x].d)) {
+					move_ok = false;
+				}
+				if (move_ok) {
+					game.player.x += dx;
+					game.player.y += dy;
+					game.moves++;
+					displayMoves();
+					position_obj('player', game.player.x, game.player.y, 25, 'move');
+					calcDistance();
+				}
+			}
+		}
+		function flashText(id) {
+			var dir = 'l';
+			if ($('#' + id).css('text-align') == 'right') {
+				dir = 'r';
+			}
+			switch (dir) {
+				case 'l':
+					$('#' + id).animate({
+						'margin-left': '20px'
+					}, 250, function () {
+						$('#' + id).animate({
+							'margin-left': '0px'
+						}, 250, function () {
+						});
+					});
+					break;
+				case 'r':
+				default:
+					$('#' + id).animate({
+						'margin-right': '20px'
+					}, 250, function () {
+						$('#' + id).animate({
+							'margin-right': '0px'
+						}, 250, function () {
+						});
+					});
+					break;
+			}
+		}
+		function displayMeasures() {
+			$('#measuresNum').html('x' + game.measures);
+			flashText('measures');
+		}
+		function displayHints() {
+			$('#hintsNum').html('x' + game.hints);
+			flashText('hints');
+		}
+		function displayHighScore() {
+			$('#highScore').html('High Score: ' + game.highScore);
+			flashText('highScore');
+		}
+		function displayRound() {
+			$('#round').html('Round: ' + game.round);
+			flashText('round');
+		}
+		function displayScore() {
+			$('#score').html('Score: ' + game.score);
+			flashText('score');
+		}
+		function displayMoves() {
+			$('#moves').html('Moves: ' + game.moves);
+			flashText('moves');
+		}
+		function playerBlink() {
+			$('#eye-l').hide();
+			$('#eye-r').hide();
+			var blink_length = 100;
+			$('#player').delay(blink_length).fadeIn(10, function () {
+				$('#eye-l').show();
+				$('#eye-r').show();
+			});
+			var nextBlink = Math.floor(Math.random() * 4 + 2) * 1000;
+			$('#eye-l').delay(nextBlink).fadeIn(10, function () {
+				playerBlink();
+			});
+		}
+		function playerWiggleArm() {
+			var d1 = 'M 70 30 q 20 40 10 0';
+			var d2 = 'M 70 30 q 20 40 15 0';
+			var d_orig = 'M 70 30 q 30 40 10 50';
+			var handx1 = '79';
+			var handx2 = '85';
+			var handy = '30';
+			var handy_orig = '80';
+			var handx_orig = '82';
+			$('#arm-r').delay(100).fadeIn(10, function () {
+				$('#arm-r').attr('d', d1);
+				$('#hand-r').attr('cx', handx1);
+				$('#hand-r').attr('cy', handy);
+				$('#arm-r').delay(100).fadeIn(10, function () {
+					$('#arm-r').attr('d', d2);
+					$('#hand-r').attr('cx', handx2);
+					$('#hand-r').attr('cy', handy);
+					$('#arm-r').delay(100).fadeIn(10, function () {
+						$('#arm-r').attr('d', d1);
+						$('#hand-r').attr('cx', handx1);
+						$('#hand-r').attr('cy', handy);
+						$('#arm-r').delay(100).fadeIn(10, function () {
+							$('#arm-r').attr('d', d2);
+							$('#hand-r').attr('cx', handx2);
+							$('#hand-r').attr('cy', handy);
+							$('#arm-r').delay(200).fadeIn(10, function () {
+								$('#arm-r').attr('d', d_orig);
+								$('#hand-r').attr('cx', handx_orig);
+								$('#hand-r').attr('cy', handy_orig);
+								game.state = 'waiting';
+							});
+						});
+					});
+				});
+			});
+		}
+
+		function useMeasure() {
+			if (game.measures > 0) {
+				game.state = 'hinting';
+				game.measures--;
+				displayMeasures();
+				var h = '';
+				h += '	<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click" >';
+				var t;
+				var l;
+				var r = 4;
+				var dx = 0;
+				var dy = 0;
+				var d = '';
+				var inc = Math.PI / 20;
+				var init_l = 0;
+				var init_t = 0;
+				for (a = 0; a < 2 * Math.PI; a += inc) {
+					dx = game.player.x + r * Math.cos(a);
+					dy = game.player.y + r * Math.sin(a);
+					t = getGridT(dx, dy) + 5;
+					l = getGridL(dx, dy) + 5;
+					//h+='		<circle id="eye-r" cx="' + l + '" cy="' + t + '" r="1" />';
+					if (d != '') {
+						d += 'L ';
+						init_l = l; init_t = t;
+					} else {
+						d += 'M ';
+					}
+					d += l + ' ' + t + ' ';
+				}
+				d += 'L ' + init_l + ' ' + init_t + 'Z';
+				h += '		<path d="' + d + '" stroke="#ff2222" stroke-width="1" fill="transparent"/>';
+				h += '	</svg>';
+				$('#hintMeasure').html(h);
+				$('#hintMeasure').fadeIn(200).delay(500).fadeOut(200, function () {
+					game.state = 'waiting';
+				});
+			}
+		}
+		function useHint() {
+			if (game.hints > 0) {
+				game.hints--;
+				displayHints();
+				// show direction arrow...
+				game.monster.t = getGridT(game.monster.x, game.monster.y);
+				game.monster.l = getGridL(game.monster.x, game.monster.y);
+				var dl = (game.player.l + 5) - (game.monster.l + 5);
+				var dt = (game.player.t + 5) - (game.monster.t + 5);
+				var ml = 0;
+				var mt = 0;
+				var c = Math.sqrt(Math.abs(dl * dl) + Math.abs(dt * dt));
+				var cx = 10 / c;
+				if (dl < 0) {
+					ml *= -1;
+				}
+				if (dt < 0) {
+					mt *= -1;
+				}
+				ml = dl * cx;
+				mt = dt * cx;
+				var h = '';
+				h += '	<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click">';
+				h += '    <defs>';
+				h += '      <marker id="hint-arrowhead" viewBox="0 0 10 10" refX="7" refY="5" markerUnits="strokeWidth" markerWidth="3" markerHeight="3" orient="auto">';
+				h += '        <path d="M 0 0 L 10 5 L 0 10 z" stroke="none" fill="#333"/>';
+				h += '      </marker>';
+				h += '    </defs>';
+				h += '		<line x1="' + (game.player.l + 5) + '" y1="' + (game.player.t + 5) + '" x2="' + (game.player.l + 5 - ml) + '" y2="' + (game.player.t + 5 - mt) + '" stroke="#333" stroke-width="2" fill="none" marker-end="url(#hint-arrowhead)"/>';
+				h += '	</svg>';
+				$('#hintArrow').html(h);
+				game.state = 'hinting';
+				$('#hintArrow').fadeIn(200).delay(500).fadeOut(200, function () {
+					game.state = 'waiting';
+				});
+
+			}
+		}
+		function gameOver() {
+			game.state = 'game-over';
+			var h = '<h3>Game Over<br />Score: ' + game.score;
+			if (game.score > game.highScore) {
+				game.highScore = game.score;
+				displayHighScore();
+				h += ' NEW HIGH SCORE!';
+			}
+			h += '</h3>';
+
+			h += '<div class="modal-button-container"><a href="#" class="button" onClick="init_game();">Play Again</a></div>';
+			$('#modal-content').html(h);
+			$('#modal-content h3').css('left', '100%');
+			$('#modal-content div').css('left', '200%');
+			$('#modal').fadeIn(150, function () {
+				$('#modal-content h3').delay(10).animate({
+					left: '0'
+				}, 250, function () {
+					$('#modal-content div').delay(10).animate({
+						left: '0'
+					}, 250, function () {
+					});
+				});
+			});
+		}
+		function displayMovesLeft() {
+			flashText('movesLeft');
+			if (game.movesLeft < 0) {
+				gameOver();
+			} else {
+				$('#movesLeft').html('Moves Left: ' + game.movesLeft);
+			}
+		}
+		function init_game() {
+			game.hints = 3; displayHints();
+			game.measures = 3; displayMeasures();
+			game.par = 8; /* for scoring */
+			$('#modal').hide();
+			game.round = 1; displayRound();
+			game.movesLeft = 8; displayMovesLeft(0);
+			game.grid_size = {};
+			game.score = 0; displayScore();
+			game.grid_size.x = 10;
+			game.grid_size.y = 10;
+			$('#board').html('');
+			init_grid();
+			init_round();
+			playerBlink();
+		}
+		function getGridT(x, y) {
+			return (x * 5 + y * 5);
+		}
+		function getGridL(x, y) {
+			return (45 + x * 5 - y * 5);
+		}
+		function resetPowerup() {
+			game.powerup.x = -1;
+			game.powerup.y = -1;
+			$('#powerup').hide();
+		}
+		function gatherPowerup() {
+			switch (game.powerup.type) {
+				case 'extra-moves':
+					game.movesLeft += 5;
+					displayMovesLeft();
+					break;
+				case 'extra-points':
+					game.score += 250;
+					displayScore();
+					break;
+				case 'extra-measures':
+					game.measures += 3;
+					displayMeasures();
+					break;
+				case 'extra-hints':
+				default:
+					game.hints++;
+					displayHints();
+					break;
+			}
+			resetPowerup();
+		}
+		function position_obj(id, x, y, h, mode) {
+			var t = x * 5 + y * 5;
+			var l = 45 + x * 5 - y * 5;
+			game.state = 'moving';
+			if (mode == 'move') {
+				$('#' + id).css('z-index', 99999);
+				$('#' + id).animate({
+					top: [(t - (h - 10)) + '%', 'easeInOutExpo'],
+					left: [l + '%', 'easeInOutExpo']
+				}, 300, function () {
+					game.player.l = l;
+					game.player.t = t;
+					$('#' + id).css('z-index', t);
+					clearCellHighlights();
+					game.state = 'waiting';
+					if (game.player.x == game.powerup.x && game.player.y == game.powerup.y) {
+						gatherPowerup();
+					}
+					calcDistance();
+				});
+			} else {
+				$('#' + id).css('z-index', t);
+				$('#' + id).css('left', l + '%');
+				$('#' + id).css('top', '-30%');
+				$('#' + id).css('display', 'block');
+				$('#' + id).animate({
+					top: [(t - (h - 10)) + '%', 'easeOutBounce']
+				}, 500, function () {
+					$('#' + id).css('top', (t - (h - 10)) + '%');
+					game.player.l = l;
+					game.player.t = t;
+					clearCellHighlights();
+					game.state = 'waiting';
+					calcDistance();
+				});
+			}
+		}
+		function clearCellHighlights() {
+			$('.cell-click').each(function () {
+				$(this).parent().find('.base-tile').css({ fill: "transparent", transition: "0.5s" });
+			})
+		}
+		function calcDistance() {
+			var dx = Math.abs(game.player.x - game.monster.x);
+			var dy = Math.abs(game.player.y - game.monster.y);
+			game.distance = Math.floor(Math.sqrt(dx * dx + dy * dy) * 100) / 100;
+			$('#distance').html('Distance: ' + game.distance);
+			flashText('distance');
+			if (game.distance == 0) {
+				game.state = 'round-over';
+				playerCelebrateRoundOver();
+				//roundOver();
+				//$('#distance').html('YOU WIN! <a href="#" onClick="nextRound();">NEXT ROUND</a>');
+			} else {
+				if (game.movesLeft < 1) {
+					gameOver();
+				}
+			}
+		}
+		function playerCelebrateRoundOver() {
+			// jump + arms in the air
+			var r_d1 = 'M 70 30 q 30 40 20 -20';
+			var r_d_orig = 'M 70 30 q 30 40 10 50';
+
+			var l_d1 = 'M 30 30 q -30 40 -20 -20';
+			var l_d_orig = 'M 30 30 q -30 40 -15 50';
+			var t_orig = game.player.t - 15;
+			var t1 = game.player.t - 30;
+
+			var leg_l_x = 35;
+			var leg_l_x_orig = 25;
+			var leg_r_x = 65;
+			var leg_r_x_orig = 75;
+
+			var hl_x1 = 10;
+			var hr_x1 = 90;
+			var hl_x_orig = 15;
+			var hr_x_orig = 82;
+			var hlr_y1 = 12;
+			var hlr_y_orig = 80;
+
+			var fl_x1 = 35;
+			var fr_x1 = 65;
+			var fl_x_orig = 26;
+			var fr_x_orig = 73;
+
+			$('#player').delay(100).fadeIn(10, function () {
+				$('#leg-l').attr('x2', leg_l_x);
+				$('.leg_r').attr('x2', leg_r_x);
+				$('#arm-l').attr('d', l_d1);
+				$('#arm-r').attr('d', r_d1);
+
+				$('#hand-l').attr('cx', hl_x1);
+				$('#hand-r').attr('cx', hr_x1);
+				$('#hand-l').attr('cy', hlr_y1);
+				$('#hand-r').attr('cy', hlr_y1);
+
+				$('#foot-l').attr('cx', fl_x1);
+				$('#foot-r').attr('cx', fr_x1);
+				$('#player').delay(10).animate({
+					top: t1 + '%'
+				}, 250, function () {
+					$('#player').delay(10).animate({
+						top: t_orig + '%'
+					}, 250, function () {
+						$('#arm-l').attr('d', l_d_orig);
+						$('#arm-r').attr('d', r_d_orig);
+						$('#leg-l').attr('x2', leg_l_x_orig);
+						$('.leg_r').attr('x2', leg_r_x_orig);
+						$('#foot-l').attr('cx', fl_x_orig);
+						$('#foot-r').attr('cx', fr_x_orig);
+						$('#hand-l').attr('cx', hl_x_orig);
+						$('#hand-r').attr('cx', hr_x_orig);
+						$('#hand-l').attr('cy', hlr_y_orig);
+						$('#hand-r').attr('cy', hlr_y_orig);
+						roundOver();
+					});
+				});
+			});
+		}
+		function roundOver() {
+			var thisScore = (game.par - game.moves) * 10;
+			if (thisScore > 0) {
+				game.score += thisScore;
+			}
+			displayScore();
+			var h = '<h3>You did it!</h3>';
+			h += '<div class="modal-button-container"><a href="#" class="button" onClick="nextRound();">NEXT ROUND</a></div>';
+			$('#modal-content').html(h);
+			$('#modal-content h3').css('left', '-100%');
+			$('#modal-content div').css('left', '100%');
+			$('#modal').fadeIn(150, function () {
+				$('#modal-content h3').delay(10).animate({
+					left: '0'
+				}, 250, function () {
+					$('#modal-content div').delay(10).animate({
+						left: '0'
+					}, 250, function () {
+					});
+				});
+			});
+		}
+		function nextRound() {
+			$('.base-tile').css({ fill: "transparent", transition: "0.5s" });
+			var newMoves = Math.floor((Math.random() * 3) + 2);
+			game.movesLeft += newMoves;
+			displayMovesLeft();
+			$('#player').css('z-index', 9999);
+			$('#player').animate({
+				top: ['-40%', 'easeInExpo']
+			}, 400, function () {
+				$('#player').delay(100).fadeIn(10, function () {
+					game.round++;
+					displayRound();
+					init_round();
+				});
+			});
+			$('#modal').hide();
+		}
+		function init_round() {
+			game.player.x = 0;
+			game.player.y = 0;
+			$('#powerup').fadeOut(100, function () {
+				resetPowerup();
+			});
+			// delay all by .25 seconds
+			$('#player').delay(250).fadeIn(10, function () {
+				if (Math.random() > .5) {
+					game.player.x = 9;
+				}
+				if (Math.random() > .5) {
+					game.player.y = 9;
+				}
+				game.moves = 0; displayMoves();
+				position_obj('player', game.player.x, game.player.y, 25, 'init');
+				var tmpX = Math.floor((Math.random() * 8) + 1);
+				var tmpY = Math.floor((Math.random() * 8) + 1);
+
+				game.monster.x = tmpX;
+				game.monster.y = tmpY;
+				if (game.player.x == 9) {
+					game.monster.x = 9 - tmpX;
+				}
+				if (game.player.y == 9) {
+					game.monster.y = 9 - tmpY;
+				}
+				calcDistance();
+				$('#player').delay(100).fadeIn(10, function () {
+					playerWiggleArm();
+				});
+			});
+		}
+		function set_board_dimensions() {
+			var w = $('#board').width();
+			var h = w / 2;
+			$('#board').height(h);
+			//$('#board').css('margin-top', (h*.1)+'%');
+		}
+		$(function () {
+			$(window).resize(function () {
+				set_board_dimensions();
+			});
+			$('#hints').click(function () {
+				useHint();
+			});
+			$('#measures').click(function () {
+				useMeasure();
+			});
+			set_board_dimensions();
+			displayHighScore();
+			init_game();
+		});
+	</script>
+</head>
+
+<body>
+	<div id="stage">
+		<div id="panel-l">
+			<div id="score">
+			</div>
+			<div id="highScore">
+			</div>
+			<div id="movesLeft">
+			</div>
+		</div>
+		<div id="panel-r">
+			<div id="round">
+			</div>
+			<div id="moves">
+			</div>
+			<div id="distance">
+			</div>
+			<div id="hints">
+				<div id="powerup_disp_hints" class="no-click">
+					<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click"
+						style="z-index:10;">
+						<circle cx="50" cy="56" r="44" fill="#777" />
+						<circle cx="50" cy="48" r="44" fill="#bbbbdd" stroke-width="5" stroke="#4444bb" />
+						<polygon points="45,43 55,53 80,20" fill="#ff4444" />
+						<polygon points="45,43 55,53 20,80" fill="#fff" />
+						<circle cx="50" cy="48" r="3" fill="#666" />
+					</svg>
+				</div>
+				<div id="hintsNum" style="display:inline;vertical-align:top;">
+				</div>
+			</div>
+			<div id="measures">
+				<div id="powerup_disp_measures" class="no-click">
+					<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" class="no-click"
+						style="z-index:10;">
+						<polygon points="0,80 20,100 100,25 80,5" fill="#888" />
+						<polygon points="0,75 20,95 100,20 80,0" fill="#d8b71a" stroke="#222" stroke-width="2" />
+						<line x1="40" y1="80" x2="30" y2="70" stroke="#222" stroke-width="2" fill="none" />
+						<line x1="60" y1="60" x2="50" y2="50" stroke="#222" stroke-width="2" fill="none" />
+						<line x1="80" y1="40" x2="70" y2="30" stroke="#222" stroke-width="2" fill="none" />
+					</svg>
+				</div>
+				<div id="measuresNum" style="display:inline;vertical-align:top;">
+				</div>
+			</div>
+			<!--
+				<a href="#" onClick="playerMove(event,0,-1);">up</a> 
+				<a href="#" onClick="playerMove(event,0,1);">down</a> 
+				<a href="#" onClick="playerMove(event,-1,0);">left</a> 
+				<a href="#" onClick="playerMove(event,1,0);">right</a>
+-->
+		</div>
+		<div id="board">
+		</div>
+	</div>
+	<div id="modal">
+		<div id="modal-content">
+		</div>
+	</div>
+	<script src="/things/rid_menu.js"></script>
+</body>
+
+</html>
